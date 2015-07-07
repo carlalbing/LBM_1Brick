@@ -1,5 +1,7 @@
 MPI_CC=CC
-MPI_FLAGS=-O2 -mp
+MPI_FLAGS=-fast -acc -Minfo=acc -Mnoopenmp
+#MPI_FLAGS=-O3 -hnoomp -hacc -hlist=m
+#MPI_FLAGS=-O2
 
 
 SOURCES= wmBrick3D.cpp OpenChannel3D.cpp WallMountedBrick.cpp
