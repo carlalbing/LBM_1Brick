@@ -7,14 +7,21 @@
 using namespace std;
 
 
-int main(int argc, char * argv[]){
-
+int main(int argc, char * argv[])
+{
+  char * paramFN;
+  char * obstFN;
   int rank, size;
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  WallMountedBrick pp(rank,size,"params.lbm","obst_file.lbm");
+  paramFN = "params.lbm";
+  obstFN = "obst_file.lbm";
+  if (argc >= 2) { paramFN = argv[1]; } 
+  if (argc >= 3) { obstFN = argv[2]; }
+
+  WallMountedBrick pp(rank, size, paramFN, obstFN);
 
   if(rank==0){
 	  cout<< "Problem initialized!" << endl;
