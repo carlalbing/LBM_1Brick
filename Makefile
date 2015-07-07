@@ -1,6 +1,9 @@
 MPI_CC=CC
-MPI_FLAGS=-fast -acc -Minfo=acc -Mnoopenmp
-#MPI_FLAGS=-O3 -hnoomp -hacc -hlist=m
+ifeq ($(PE_ENV),PGI)
+	MPI_FLAGS=-fast -acc -Minfo=acc -Mnoopenmp
+else
+	MPI_FLAGS=-O3 -hnoomp -hacc -hlist=m
+endif
 #MPI_FLAGS=-O2
 
 
@@ -16,4 +19,4 @@ $(TARGET): $(OBJECTS)
 	$(MPI_CC) $(MPI_FLAGS) -o $@ $^
 
 clean:
-	rm *.o $(TARGET) *~
+	rm -f *.o $(TARGET) *~
