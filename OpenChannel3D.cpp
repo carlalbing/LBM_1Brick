@@ -145,10 +145,19 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice,
     fIn = fOdd; fOut = fEven;
   }
 
+  int* inl = this->inl;
+  int* onl = this->onl;
+  int* snl = this->snl;
+  float* u_bc = this->u_bc;
+  int Ny = this->Ny;
+  int Nx = this->Nx;
+  float omega = this->omega;
+
 
   //Nz=lastSlice-firstSlice;
   const int numSpd=15;
   #pragma omp parallel for collapse(3)
+  #pragma acc parallel loop collapse(3) copy(fIn[0:Nx*Ny*lastSlice*numSpd], fOut[0:Nx*Ny*lastSlice*numSpd], inl[0:Nx*Ny*lastSlice], onl[0:Nx*Ny*lastSlice], snl[0:Nx*Ny*lastSlice], u_bc[0:Nx*Ny*lastSlice])
   for(int Z=firstSlice;Z<lastSlice;Z++){
     for(int Y=0;Y<Ny;Y++){
       for(int X=0;X<Nx;X++){
