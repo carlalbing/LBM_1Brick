@@ -9,8 +9,8 @@ using namespace std;
 
 int main(int argc, char * argv[])
 {
-  char * paramFN;
-  char * obstFN;
+  const char * paramFN;
+  const char * obstFN;
   int rank, size;
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
