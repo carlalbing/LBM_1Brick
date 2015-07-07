@@ -158,7 +158,9 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice,
   //Nz=lastSlice-firstSlice;
   const int numSpd=15;
   #pragma omp parallel for collapse(3)
-  #pragma acc parallel loop collapse(3) copy(fIn[0:nnodes*numSpd], fOut[0:nnodes*numSpd], inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
+  #pragma acc parallel loop collapse(3) \
+    copyin(fIn[0:nnodes*numSpd]) copyout(fOut[0:nnodes*numSpd]) \
+    present(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
   for(int Z=firstSlice;Z<lastSlice;Z++){
     for(int Y=0;Y<Ny;Y++){
       for(int X=0;X<Nx;X++){
