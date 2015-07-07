@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <stdexcept>
 
 // for debugging
 #include <iostream>
@@ -800,6 +801,8 @@ void OpenChannel3D::initialize_local_partition_variables(){
 
 void OpenChannel3D::read_input_file(const string input_file){
 	ifstream input_params(input_file.c_str(),ios::in);
+    if(!input_params.is_open())
+        throw std::runtime_error("Could not open params file!");
 	input_params >> LatticeType;
 	input_params >> Num_ts;
 	input_params >> ts_rep_freq;
