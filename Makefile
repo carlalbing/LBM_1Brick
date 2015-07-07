@@ -1,5 +1,5 @@
-MPI_CC=mpicxx
-MPI_FLAGS=-O2
+MPI_CC=CC
+MPI_FLAGS=-O2 -mp
 
 
 SOURCES= wmBrick3D.cpp OpenChannel3D.cpp WallMountedBrick.cpp

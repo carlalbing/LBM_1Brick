@@ -66,12 +66,12 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
 		fOut = fOdd;
 	}
 
-	int tid_l, tid_g;
-	float tmp_rho, tmp_ux, tmp_uy, tmp_uz;
-
+	#pragma omp parallel for collapse(3)
 	for(int z = HALO;z<(totalSlices-HALO);z++){
 	  for(int y = 0;y<Ny;y++){
 	    for(int x = 0;x<Nx;x++){
+	      int tid_l, tid_g;
+	      float tmp_rho, tmp_ux, tmp_uy, tmp_uz;
 	      tid_l = x+y*Nx+(z-HALO)*Nx*Ny;
 	      tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
 	      tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
@@ -145,15 +145,16 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice,
     fIn = fOdd; fOut = fEven;
   }
 
-  float f0,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14;
-  float cu,rho,ux,uy,uz,fEq,dz;
-  int X_t,Y_t,Z_t,tid_t,tid,Nz;
 
   //Nz=lastSlice-firstSlice;
   const int numSpd=15;
+  #pragma omp parallel for collapse(3)
   for(int Z=firstSlice;Z<lastSlice;Z++){
     for(int Y=0;Y<Ny;Y++){
       for(int X=0;X<Nx;X++){
+	float f0,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14;
+	float cu,rho,ux,uy,uz,fEq,dz;
+	int X_t,Y_t,Z_t,tid_t,tid;
 
 	tid=X+Y*Nx+Z*Nx*Ny;
 
