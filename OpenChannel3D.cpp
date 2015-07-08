@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include "workArounds.h"
 
 // for debugging
 #include <iostream>
@@ -66,6 +67,12 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     }else{
         fOut = fOdd;
     }
+    
+    int nnodes = this->nnodes;
+    int numSpd = this->numSpd;
+    
+    dummyUse(nnodes);
+    #pragma acc update self(fOut[0:nnodes*numSpd])
     
     #pragma omp parallel for collapse(3)
     for(int z = HALO;z<(totalSlices-HALO);z++){
@@ -159,8 +166,8 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     const int numSpd=15;
     #pragma omp parallel for collapse(3)
     #pragma acc parallel loop collapse(3) \
-        copyin(fIn[0:nnodes*numSpd]) \
-        copy(fOut[0:nnodes*numSpd]) \
+        present(fIn[0:nnodes*numSpd]) \
+        present(fOut[0:nnodes*numSpd]) \
         present(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
     for(int Z=firstSlice;Z<lastSlice;Z++){
         for(int Y=0;Y<Ny;Y++){
@@ -499,7 +506,7 @@ void OpenChannel3D::stream_out_collect(const float * fIn_b, float * buff_out, co
     
     #pragma acc parallel loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
-        copyin(fIn_b[0:Nx*Ny*numSpd*HALO]) \
+        present(fIn_b[0:Nx*Ny*numSpd*HALO]) \
         copyout(buff_out[0:Nx*Ny*numStreamSpeeds*HALO])
     for(int z=0;z<HALO;z++){
         for(int y=0;y<Ny;y++){
@@ -521,7 +528,7 @@ void OpenChannel3D::stream_in_distribute(float * fIn_b, const float * buff_in, c
     
     #pragma acc parallel loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
-        copy(fIn_b[0:Nx*Ny*numSpd*HALO]) \
+        present(fIn_b[0:Nx*Ny*numSpd*HALO]) \
         copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
     for(int z=0;z<HALO;z++){
         for(int y=0;y<Ny;y++){
