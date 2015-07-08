@@ -40,7 +40,7 @@ int main(int argc, char * argv[])
   int numMspeeds = pp.numMspeeds;
   
 
-  dummyUse(inl, onl, snl, u_bc, nnodes);
+  dummyUse(inl, onl, snl, u_bc, nnodes, Mspeeds, Pspeeds, numPspeeds, numMspeeds);
 
   #pragma acc  data \
       copyin(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes],Mspeeds[0:numMspeeds],Pspeeds[0:numPspeeds])
