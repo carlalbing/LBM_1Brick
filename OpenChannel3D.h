@@ -36,9 +36,9 @@ public:
 
 	// lattice data
 	int numSpd;
-	float * ex;
-	float * ey;
-	float * ez;
+	const float * ex;
+	const float * ey;
+	const float * ez;
 	float * w;
 	int numPspeeds;
 	int * Pspeeds;

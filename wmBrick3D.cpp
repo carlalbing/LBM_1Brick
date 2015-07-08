@@ -5,10 +5,17 @@
 #include "WallMountedBrick.h"
 #include "workArounds.h"
 
+#ifdef CRAYPAT
+#include "pat_api.h"
+#endif
+
 using namespace std;
 
 int main(int argc, char * argv[])
 {
+     #ifdef CRAYPAT
+     PAT_record(PAT_STATE_OFF);
+     #endif
     const char * paramFN;
     const char * obstFN;
     int rank, size;
@@ -26,6 +33,10 @@ int main(int argc, char * argv[])
     if(rank==0){
         cout<< "Problem initialized!" << endl;
     }
+    
+    #ifdef CRAYPAT
+    PAT_record(PAT_STATE_ON);
+    #endif
     
     int* inl = pp.inl;
     int* onl = pp.onl;
@@ -83,6 +94,10 @@ int main(int argc, char * argv[])
         }
         
     } // end of acc data region
+    
+    #ifdef CRAYPAT
+    PAT_record(PAT_STATE_OFF);
+    #endif
     
     MPI_Finalize();
     return 0;

@@ -70,11 +70,26 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     
     int nnodes = this->nnodes;
     int numSpd = this->numSpd;
-    
-    dummyUse(nnodes);
-    #pragma acc update self(fOut[0:nnodes*numSpd])
+    int Nx = this->Nx;
+    int Ny = this->Ny;
+    const float * ex = this->ex;
+    const float * ey = this->ey;
+    const float * ez = this->ez;
+    float * ux_l = this->ux_l;
+    float * uy_l = this->uy_l;
+    float * uz_l = this->uz_l;
+    float * rho_l = this->rho_l;
+    int totalSlices = this->totalSlices;
+    int * snl = this->snl;
+    int numMySlices = this->numMySlices;
+    int numEntries = Nx*Ny*numMySlices;
+    dummyUse(nnodes,numEntries);
     
     #pragma omp parallel for collapse(3)
+    #pragma acc parallel loop collapse(3) \
+        present(fOut[0:nnodes*numSpd], snl[0:nnodes]) \
+        copyout(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
+        copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
     for(int z = HALO;z<(totalSlices-HALO);z++){
         for(int y = 0;y<Ny;y++){
             for(int x = 0;x<Nx;x++){
