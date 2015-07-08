@@ -3,9 +3,9 @@
 #include <iostream>
 //#include "OpenChannel3D.h"
 #include "WallMountedBrick.h"
+#include "workArounds.h"
 
 using namespace std;
-
 
 int main(int argc, char * argv[])
 {
@@ -32,6 +32,8 @@ int main(int argc, char * argv[])
   int* snl = pp.snl;
   float* u_bc = pp.u_bc;
   int nnodes = pp.nnodes;
+
+  dummyUse(inl, onl, snl, u_bc, nnodes);
 
   #pragma acc  data \
       copyin(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])

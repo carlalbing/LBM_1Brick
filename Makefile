@@ -1,6 +1,6 @@
 MPI_CC=CC
 ifeq ($(PE_ENV),PGI)
-	MPI_FLAGS=-fast -acc -Minfo=acc -Mnoopenmp
+	MPI_FLAGS=-O3 -fast -acc -Minfo=acc -Mnoopenmp
 else
 	MPI_FLAGS=-O3 -hnoomp -hacc -hlist=m
 endif
@@ -8,7 +8,7 @@ endif
 
 
 SOURCES= wmBrick3D.cpp OpenChannel3D.cpp WallMountedBrick.cpp
-OBJECTS=wmBrick3D.o OpenChannel3D.o WallMountedBrick.o
+OBJECTS=wmBrick3D.o OpenChannel3D.o WallMountedBrick.o workArounds.o
 
 TARGET=WMBrick3D
 
