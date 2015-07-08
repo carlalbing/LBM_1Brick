@@ -146,6 +146,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice,
     fIn = fOdd; fOut = fEven;
   }
 
+// local copies of class data members needed for acc compiler
   int* inl = this->inl;
   int* onl = this->onl;
   int* snl = this->snl;
@@ -153,13 +154,16 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice,
   int Ny = this->Ny;
   int Nx = this->Nx;
   float omega = this->omega;
+  int nnodes = this->nnodes;
+  //
 
 
   //Nz=lastSlice-firstSlice;
   const int numSpd=15;
   #pragma omp parallel for collapse(3)
   #pragma acc parallel loop collapse(3) \
-    copyin(fIn[0:nnodes*numSpd]) copyout(fOut[0:nnodes*numSpd]) \
+    copyin(fIn[0:nnodes*numSpd]) \
+    copy(fOut[0:nnodes*numSpd]) \
     present(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
   for(int Z=firstSlice;Z<lastSlice;Z++){
     for(int Y=0;Y<Ny;Y++){
@@ -496,15 +500,24 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice,
 void OpenChannel3D::stream_out_collect(const float * fIn_b, float * buff_out,
 		const int numStreamSpeeds,
 		const int * streamSpeeds){
-	int numSpeeds = numSpd;
-	int tid_l, stream_spd;
+		
+		
+	int Ny = this->Ny;
+	int Nx = this->Nx;
+	int numSpd = this->numSpd;
+	
+	
+	#pragma acc parallel loop collapse(3) \
+	  present(streamSpeeds[0:numStreamSpeeds]) \
+	  copyin(fIn_b[0:Nx*Ny*numSpd*HALO]) \
+	  copyout(buff_out[0:Nx*Ny*numStreamSpeeds*HALO]) 
 	for(int z=0;z<HALO;z++){
 		for(int y=0;y<Ny;y++){
 			for(int x=0;x<Nx;x++){
-				for(int spd=0;spd<numStreamSpeeds;spd++){
-					tid_l = x+y*Nx+z*Nx*Ny;
-					stream_spd=streamSpeeds[spd];
-					buff_out[tid_l*numStreamSpeeds+spd]=fIn_b[tid_l*numSpeeds+stream_spd];
+				 for(int spd=0;spd<numStreamSpeeds;spd++){
+				    int tid_l = x+y*Nx+z*Nx*Ny;
+					  int stream_spd=streamSpeeds[spd];
+					  buff_out[tid_l*numStreamSpeeds+spd]=fIn_b[tid_l*numSpd+stream_spd];
 				}
 			}
 		}
@@ -514,14 +527,21 @@ void OpenChannel3D::stream_out_collect(const float * fIn_b, float * buff_out,
 void OpenChannel3D::stream_in_distribute(float * fIn_b,
 		const float * buff_in, const int numStreamSpeeds,
 		const int * streamSpeeds){
-
-	int tid_l, stream_spd;
+  int Nx = this->Nx;
+  int Ny = this->Ny;
+  int numSpd = this->numSpd;
+	
+	 
+  #pragma acc parallel loop collapse(3) \
+	  present(streamSpeeds[0:numStreamSpeeds]) \
+	  copy(fIn_b[0:Nx*Ny*numSpd*HALO]) \
+	  copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
 	for(int z=0;z<HALO;z++){
 		for(int y=0;y<Ny;y++){
 			for(int x=0;x<Nx;x++){
 				for(int spd=0;spd<numStreamSpeeds;spd++){
-					tid_l=x+y*Nx+z*Nx*Ny;
-					stream_spd=streamSpeeds[spd];
+					int tid_l=x+y*Nx+z*Nx*Ny;
+					int stream_spd=streamSpeeds[spd];
 					fIn_b[tid_l*numSpd+stream_spd]=buff_in[tid_l*numStreamSpeeds+spd];
 				}
 
@@ -529,8 +549,7 @@ void OpenChannel3D::stream_in_distribute(float * fIn_b,
 		}
 	}
 
-
-
+  
 }
 void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
 
@@ -547,8 +566,7 @@ void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
 		fIn_b = ghost_out_even_m;
 	}
 
-	// cout << "rank: " << rank << "in take_lbm_timestep: " << endl;
-	// cout << "rank: " << rank << "fIn_b (ghost_out_[odd/even]_m buffer) = " << fIn_b << endl;
+	
 
 	stream_out_collect(fIn_b,ghost_out_m,numMspeeds,Mspeeds);
 	// begin communication to ghost_p_in
@@ -564,7 +582,7 @@ void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
 		fIn_b = ghost_out_even_p;
 	}
 
-	//	cout << "rank: " << rank << "(ghost_out_[odd/even]_p) = " << fIn_b << endl;
+	
 
 	stream_out_collect(fIn_b,ghost_out_p,numPspeeds,Pspeeds);
 	// begin communication to ghost_m_in
@@ -581,18 +599,21 @@ void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
 	}else{
 		fIn_b = ghost_in_even_p;
 	}
+	
+	
 	stream_in_distribute(fIn_b,ghost_in_p,numMspeeds,Mspeeds);
 
-	//	cout << "rank: " << rank << "ghost_in_[odd/even]_p = " << fIn_b << endl;
-
+	
 	// copy data from ghost_m_in to Pspeeds on M boundary points
 	if(isEven){
 		fIn_b = ghost_in_odd_m;
 	}else{
 		fIn_b = ghost_in_even_m;
 	}
+	
+	
 	stream_in_distribute(fIn_b,ghost_in_m,numPspeeds,Pspeeds);
-	//cout << "rank: " << rank << "ghost_in_[odd/even]_m = " << fIn_b << endl;
+	
 
 }
 
