@@ -32,11 +32,18 @@ int main(int argc, char * argv[])
   int* snl = pp.snl;
   float* u_bc = pp.u_bc;
   int nnodes = pp.nnodes;
+  
+  int * Mspeeds = pp.Mspeeds;
+  int * Pspeeds = pp.Pspeeds;
+  
+  int numPspeeds = pp.numPspeeds;
+  int numMspeeds = pp.numMspeeds;
+  
 
   dummyUse(inl, onl, snl, u_bc, nnodes);
 
   #pragma acc  data \
-      copyin(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
+      copyin(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes],Mspeeds[0:numMspeeds],Pspeeds[0:numPspeeds])
   {
     // write initial data
     // (data processing script will be expecting it)
@@ -67,7 +74,9 @@ int main(int argc, char * argv[])
 	    LPU_sec = ((double)gNumLP*(double)pp.Num_ts)/ex_time;
 	    cout << "Estimiated LPU/sec = " << LPU_sec << endl;
     }
-  }
+    
+  } // end of acc data region
+  
   MPI_Finalize();
   return 0;
 }
