@@ -174,7 +174,8 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     int Nx = this->Nx;
     float omega = this->omega;
     int nnodes = this->nnodes;
-    //
+    
+    dummyUse(nnodes);
     
     
     //Nz=lastSlice-firstSlice;
