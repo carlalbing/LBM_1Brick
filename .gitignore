@@ -16,3 +16,5 @@ params.lbm
 WMBrick3D
 *.o
 /*.out
+/gen_gold_standard.py
+*.pyc
