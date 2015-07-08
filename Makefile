@@ -1,10 +1,12 @@
 MPI_CC=CC
 ifeq ($(PE_ENV),PGI)
 	MPI_FLAGS=-O3 -fast -acc -Minfo=acc -Mnoopenmp
+	ifeq ($(CRAYPAT_COMPILER_OPTIONS),1)
+		MPI_FLAGS=$(MPI_FLAGS) -DCRAYPAT
+	endif
 else
 	MPI_FLAGS=-O3 -hnoomp -hacc -hlist=m
 endif
-#MPI_FLAGS=-O2
 
 
 SOURCES= wmBrick3D.cpp OpenChannel3D.cpp WallMountedBrick.cpp
