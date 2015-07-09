@@ -70,9 +70,10 @@ public:
   void take_lbm_timestep(bool isEven, MPI_Comm comm);
   
   #pragma acc routine seq
-  static inline unsigned getIdx(unsigned cellIdx, int spdIdx) 
+  static inline unsigned getIdx(const unsigned nnodes, const unsigned numSpd, unsigned cellIdx, unsigned spdIdx) 
   { 
-     return  cellIdx*numSpd+spdIdx;
+     //return  cellIdx*numSpd+spdIdx;
+     return spdIdx*nnodes+cellIdx;
   }
 
  private:
