@@ -35,7 +35,7 @@ public:
 	int Nz;
 
 	// lattice data
-	int numSpd;
+	static const int numSpd=15;
 	const float * ex;
 	const float * ey;
 	const float * ez;
@@ -54,9 +54,7 @@ public:
 
 	// MPI communication info
 	int firstNdm, lastNdm, firstNdp, lastNdp, numHALO;
-	// pointers to boundary slice info
-	float * ghost_out_odd_p, * ghost_out_odd_m, * ghost_in_odd_p, * ghost_in_odd_m;
-	float * ghost_out_even_p, * ghost_out_even_m, * ghost_in_even_p, * ghost_in_even_m;
+	
 	// data buffers
 	float * ghost_in_m, * ghost_out_m, * ghost_in_p, * ghost_out_p;
 
@@ -70,6 +68,12 @@ public:
   ~OpenChannel3D();
   void write_data(MPI_Comm comm, bool isEven);
   void take_lbm_timestep(bool isEven, MPI_Comm comm);
+  
+  #pragma acc routine seq
+  static inline unsigned getIdx(unsigned cellIdx, int spdIdx) 
+  { 
+     return  cellIdx*numSpd+spdIdx;
+  }
 
  private:
   void read_input_file(const string input_file);
@@ -78,10 +82,9 @@ public:
   void initialize_mpi_buffers();
   void D3Q15_process_slices(bool isEven, const int firstSlice,
 		  const int lastSlice);
-  void stream_out_collect(const float * fIn_b, float * buff_out,
-			const int numStreamSpeeds,
-			const int * streamSpeeds);
-  void stream_in_distribute(float * fIn_b,
+  void stream_out_collect(bool isEven,const int z_start,float * buff_out, 
+      const int numStreamSpeeds, const int * streamSpeeds);
+  void stream_in_distribute(bool isEven,const int z_start,
 			const float * buff_in, const int numStreamSpeeds,
 			const int * streamSpeeds);
 

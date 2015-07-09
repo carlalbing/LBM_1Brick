@@ -174,7 +174,8 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     int Nx = this->Nx;
     float omega = this->omega;
     int nnodes = this->nnodes;
-    //
+    
+    dummyUse(nnodes);
     
     
     //Nz=lastSlice-firstSlice;
@@ -202,14 +203,14 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 // f10=fIn[10*Nx*Ny*Nz+tid]; f11=fIn[11*Nx*Ny*Nz+tid];
                 // f12=fIn[12*Nx*Ny*Nz+tid]; f13=fIn[13*Nx*Ny*Nz+tid];
                 // f14=fIn[14*Nx*Ny*Nz+tid];
-                f0=fIn[tid*numSpd]; f1=fIn[tid*numSpd+1];
-                f2=fIn[tid*numSpd+2]; f3=fIn[tid*numSpd+3];
-                f4=fIn[tid*numSpd+4]; f5=fIn[tid*numSpd+5];
-                f6=fIn[tid*numSpd+6]; f7=fIn[tid*numSpd+7];
-                f8=fIn[tid*numSpd+8]; f9=fIn[tid*numSpd+9];
-                f10=fIn[tid*numSpd+10]; f11=fIn[tid*numSpd+11];
-                f12=fIn[tid*numSpd+12]; f13=fIn[tid*numSpd+13];
-                f14=fIn[tid*numSpd+14];
+                f0=fIn[getIdx(tid,0)]; f1=fIn[getIdx(tid,1)];
+                f2=fIn[getIdx(tid,2)]; f3=fIn[getIdx(tid,3)];
+                f4=fIn[getIdx(tid,4)]; f5=fIn[getIdx(tid,5)];
+                f6=fIn[getIdx(tid,6)]; f7=fIn[getIdx(tid,7)];
+                f8=fIn[getIdx(tid,8)]; f9=fIn[getIdx(tid,9)];
+                f10=fIn[getIdx(tid,10)]; f11=fIn[getIdx(tid,11)];
+                f12=fIn[getIdx(tid,12)]; f13=fIn[getIdx(tid,13)];
+                f14=fIn[getIdx(tid,14)];
                 
                 //compute density
                 rho = f0+f1+f2+f3+f4+f5+f6+f7+f8+f9+f10+f11+f12+f13+f14;
@@ -392,35 +393,35 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 
                 //speed 0 ex=ey=ez=0
                 //fOut[tid]=f0;
-                fOut[tid*numSpd]=f0;
+                fOut[getIdx(tid,0)]=f0;
                 
                 //speed 1 ex=1 ey=ez=0
                 X_t=X+1; Y_t=Y; Z_t=Z;
                 if(X_t==Nx) X_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[Nx*Ny*Nz+tid_t]=f1;
-                fOut[tid_t*numSpd+1]=f1;
+                fOut[getIdx(tid_t,1)]=f1;
                 
                 //speed 2 ex=-1 ey=ez=0;
                 X_t=X-1; Y_t=Y; Z_t=Z;
                 if(X_t<0) X_t=(Nx-1);
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[2*Nx*Ny*Nz+tid_t]=f2;
-                fOut[tid_t*numSpd+2]=f2;
+                fOut[getIdx(tid_t,2)]=f2;
                 
                 //speed 3 ex=0 ey=1 ez=0
                 X_t=X; Y_t=Y+1; Z_t=Z;
                 if(Y_t==Ny) Y_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[3*Nx*Ny*Nz+tid_t]=f3;
-                fOut[tid_t*numSpd+3]=f3;
+                fOut[getIdx(tid_t,3)]=f3;
                 
                 //speed 4 ex=0 ey=-1 ez=0
                 X_t=X; Y_t=Y-1; Z_t=Z;
                 if(Y_t<0) Y_t=(Ny-1);
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 ///	fOut[4*Nx*Ny*Nz+tid_t]=f4;
-                fOut[tid_t*numSpd+4]=f4;
+                fOut[getIdx(tid_t,4)]=f4;
                 
                 
                 //speed 5 ex=ey=0 ez=1
@@ -428,14 +429,14 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t==Nz) Z_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //fOut[5*Nx*Ny*Nz+tid_t]=f5;
-                fOut[tid_t*numSpd+5]=f5;
+                fOut[getIdx(tid_t,5)]=f5;
                 
                 //speed 6 ex=ey=0 ez=-1
                 X_t=X; Y_t=Y; Z_t=Z-1;
                 //	if(Z_t<0) Z_t=(Nz-1);
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[6*Nx*Ny*Nz+tid_t]=f6;
-                fOut[tid_t*numSpd+6]=f6;
+                fOut[getIdx(tid_t,6)]=f6;
                 
                 //speed 7 ex=ey=ez=1
                 X_t=X+1; Y_t=Y+1; Z_t=Z+1;
@@ -444,7 +445,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t==Nz) Z_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[7*Nx*Ny*Nz+tid_t]=f7;
-                fOut[tid_t*numSpd+7]=f7;
+                fOut[getIdx(tid_t,7)]=f7;
                 
                 //speed 8 ex=-1 ey=1 ez=1
                 X_t=X-1; Y_t=Y+1; Z_t=Z+1;
@@ -453,7 +454,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t==Nz) Z_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[8*Nx*Ny*Nz+tid_t]=f8;
-                fOut[tid_t*numSpd+8]=f8;
+                fOut[getIdx(tid_t,8)]=f8;
                 
                 //speed 9 ex=1 ey=-1 ez=1
                 X_t=X+1; Y_t=Y-1; Z_t=Z+1;
@@ -462,7 +463,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t==Nz) Z_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[9*Nx*Ny*Nz+tid_t]=f9;
-                fOut[tid_t*numSpd+9]=f9;
+                fOut[getIdx(tid_t,9)]=f9;
                 
                 //speed 10 ex=-1 ey=-1 ez=1
                 X_t=X-1; Y_t=Y-1; Z_t=Z+1;
@@ -471,7 +472,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t==Nz) Z_t=0;
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[10*Nx*Ny*Nz+tid_t]=f10;
-                fOut[tid_t*numSpd+10]=f10;
+                fOut[getIdx(tid_t,10)]=f10;
                 
                 //speed 11 ex=1 ey=1 ez=-1
                 X_t=X+1; Y_t=Y+1; Z_t=Z-1;
@@ -480,7 +481,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t<0) Z_t=(Nz-1);
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[11*Nx*Ny*Nz+tid_t]=f11;
-                fOut[tid_t*numSpd+11]=f11;
+                fOut[getIdx(tid_t,11)]=f11;
                 
                 //speed 12 ex=-1 ey=1 ez=-1
                 X_t=X-1; Y_t=Y+1; Z_t=Z-1;
@@ -489,7 +490,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t<0) Z_t=(Nz-1);
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[12*Nx*Ny*Nz+tid_t]=f12;
-                fOut[tid_t*numSpd+12]=f12;
+                fOut[getIdx(tid_t,12)]=f12;
                 
                 //speed 13 ex=1 ey=-1 ez=-1
                 X_t=X+1; Y_t=Y-1; Z_t=Z-1;
@@ -498,7 +499,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 //	if(Z_t<0) Z_t=(Nz-1);
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[13*Nx*Ny*Nz+tid_t]=f13;
-                fOut[tid_t*numSpd+13]=f13;
+                fOut[getIdx(tid_t,13)]=f13;
                 
                 //speed 14 ex=ey=ez=-1
                 X_t=X-1; Y_t=Y-1; Z_t=Z-1;
@@ -508,50 +509,71 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 tid_t=X_t+Y_t*Nx+Z_t*Nx*Ny;
                 //	fOut[14*Nx*Ny*Nz+tid_t]=f14;
                 
-                fOut[tid_t*numSpd+14]=f14;
+                //fOut[tid_t*numSpd+14]=f14;
+                fOut[getIdx(tid_t,14)]=f14;
             }
         }
     }
 }
 
-void OpenChannel3D::stream_out_collect(const float * fIn_b, float * buff_out, const int numStreamSpeeds, const int * streamSpeeds){
+void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * buff_out, const int numStreamSpeeds, const int * streamSpeeds){
     int Ny = this->Ny;
     int Nx = this->Nx;
     int numSpd = this->numSpd;
+    int nnodes = this->nnodes;
+    
+    float * fIn_b;
+    if(isEven) {
+      fIn_b = fOdd;
+    }else{
+      fIn_b = fEven;
+    }
+    
+    dummyUse(nnodes,numSpd);
     
     #pragma acc parallel loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
-        present(fIn_b[0:Nx*Ny*numSpd*HALO]) \
+        present(fIn_b[0:nnodes*numSpd]) \
         copyout(buff_out[0:Nx*Ny*numStreamSpeeds*HALO])
     for(int z=0;z<HALO;z++){
         for(int y=0;y<Ny;y++){
             for(int x=0;x<Nx;x++){
                 for(int spd=0;spd<numStreamSpeeds;spd++){
-                    int tid_l = x+y*Nx+z*Nx*Ny;
+                    int tid_l = x+y*Nx+z*Nx*Ny; int tid_g = x+y*Nx+(z+z_start)*Nx*Ny;
                     int stream_spd=streamSpeeds[spd];
-                    buff_out[tid_l*numStreamSpeeds+spd]=fIn_b[tid_l*numSpd+stream_spd];
+                    buff_out[tid_l*numStreamSpeeds+spd]=fIn_b[getIdx(tid_g,stream_spd)];
                 }
             }
         }
     }
 }
 
-void OpenChannel3D::stream_in_distribute(float * fIn_b, const float * buff_in, const int numStreamSpeeds, const int * streamSpeeds){
+void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const float * buff_in, const int numStreamSpeeds, const int * streamSpeeds){
     int Nx = this->Nx;
     int Ny = this->Ny;
     int numSpd = this->numSpd;
+    int nnodes = this->nnodes;
     
+    float * fIn_b;
+    
+    if (isEven) {
+      fIn_b = fOdd;
+    }else{
+      fIn_b = fEven;
+    }
+    
+    dummyUse(nnodes,numSpd);
     #pragma acc parallel loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
-        present(fIn_b[0:Nx*Ny*numSpd*HALO]) \
+        present(fIn_b[0:nnodes*numSpd]) \
         copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
     for(int z=0;z<HALO;z++){
         for(int y=0;y<Ny;y++){
             for(int x=0;x<Nx;x++){
                 for(int spd=0;spd<numStreamSpeeds;spd++){
-                    int tid_l=x+y*Nx+z*Nx*Ny;
+                    int tid_l=x+y*Nx+z*Nx*Ny; int tid_g = x+y*Nx+(z+z_start)*Nx*Ny;
                     int stream_spd=streamSpeeds[spd];
-                    fIn_b[tid_l*numSpd+stream_spd]=buff_in[tid_l*numStreamSpeeds+spd];
+                    fIn_b[getIdx(tid_g,stream_spd)]=buff_in[tid_l*numStreamSpeeds+spd];
                 }
             }
         }
@@ -562,30 +584,17 @@ void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
     // collide and stream lower boundary slices
     D3Q15_process_slices(isEven,HALO,HALO+1);
     
-    // collect data in ghost_m_out
-    float * fIn_b;
-    if(isEven){
-        fIn_b = ghost_out_odd_m;
-        
-    }else{
-        fIn_b = ghost_out_even_m;
-    }
-    
-    stream_out_collect(fIn_b,ghost_out_m,numMspeeds,Mspeeds);
+    // collect data from lower HALO slice z = 0
+    stream_out_collect(isEven,0,ghost_out_m,numMspeeds,Mspeeds);
     // begin communication to ghost_p_in
     MPI_Isend(ghost_out_m,numHALO,MPI_FLOAT,nd_m,tag_d,comm, &rq_out1);
     MPI_Irecv(ghost_in_p,numHALO,MPI_FLOAT,nd_p,tag_d,comm,&rq_in1);
     // collide and stream upper boundary slices
     D3Q15_process_slices(isEven,totalSlices-2*HALO,totalSlices-HALO);
-    // collect data in ghost_p_out
-    if(isEven){
-        fIn_b = ghost_out_odd_p;
-        
-    }else{
-        fIn_b = ghost_out_even_p;
-    }
     
-    stream_out_collect(fIn_b,ghost_out_p,numPspeeds,Pspeeds);
+    // collect data from upper HALO slice; z = totalSlices-1
+       
+    stream_out_collect(isEven,totalSlices-HALO,ghost_out_p,numPspeeds,Pspeeds);
     // begin communication to ghost_m_in
     MPI_Isend(ghost_out_p,numHALO,MPI_FLOAT,nd_p,tag_u,comm,&rq_out2);
     MPI_Irecv(ghost_in_m,numHALO,MPI_FLOAT,nd_m,tag_u,comm,&rq_in2);
@@ -594,25 +603,14 @@ void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
     // ensure communication of boundary lattice points is complete
     MPI_Wait(&rq_in1,&stat);
     MPI_Wait(&rq_in2,&stat);
-    // copy data from ghost_in_p to Mspeeds on P boundary points
-    if(isEven){
-        fIn_b = ghost_in_odd_p;
-    }else{
-        fIn_b = ghost_in_even_p;
-    }
     
-    stream_in_distribute(fIn_b,ghost_in_p,numMspeeds,Mspeeds);
+    // copy data from i+1 partition into upper boundary slice
+      
+    stream_in_distribute(isEven,totalSlices-2*HALO,ghost_in_p,numMspeeds,Mspeeds);
     
     
-    // copy data from ghost_m_in to Pspeeds on M boundary points
-    if(isEven){
-        fIn_b = ghost_in_odd_m;
-    }else{
-        fIn_b = ghost_in_even_m;
-    }
-    
-    
-    stream_in_distribute(fIn_b,ghost_in_m,numPspeeds,Pspeeds);
+    // copy data from i-1 partition into lower boundary slice
+    stream_in_distribute(isEven,HALO,ghost_in_m,numPspeeds,Pspeeds);
 }
 
 void OpenChannel3D::initialize_mpi_buffers(){
@@ -623,27 +621,6 @@ void OpenChannel3D::initialize_mpi_buffers(){
     firstNdp = nnodes-2*(Nx*Ny*HALO);
     lastNdp = nnodes-(Nx*Ny*HALO);
     
-    // actual pointers
-    ghost_out_odd_p = fOdd +(Nx*Ny*(totalSlices-HALO)*numSpd);
-    ghost_out_odd_m = fOdd;
-    ghost_in_odd_p = fOdd+(Nx*Ny*numSpd*numMySlices);
-    ghost_in_odd_m = fOdd+(Nx*Ny*numSpd*HALO);
-    
-    // cout << "rank: " << rank << "In initialize MPI buffers: " << endl;
-    // cout << "rank: " << rank << "ghost_out_odd_p = " << ghost_out_odd_p << endl;
-    // cout << "rank: " << rank << "ghost_out_odd_m = " << ghost_out_odd_m << endl;
-    // cout << "rank: " << rank << "ghost_in_odd_p = " << ghost_in_odd_p << endl;
-    // cout << "rank: " << rank << "ghost_in_odd_m = " << ghost_in_odd_m << endl;
-    
-    ghost_out_even_p = fEven+(Nx*Ny*(totalSlices-HALO)*numSpd);
-    ghost_out_even_m = fEven;
-    ghost_in_even_p = fEven+(Nx*Ny*numSpd*numMySlices);
-    ghost_in_even_m = fEven+(Nx*Ny*numSpd*HALO);
-    
-    // cout << "rank: " << rank << "ghost_out_even_p = " << ghost_out_even_p << endl;
-    // cout << "rank: " << rank << "ghost_out_even_m = " << ghost_out_even_m << endl;
-    // cout << "rank: " << rank << "ghost_in_even_p = " << ghost_in_even_p << endl;
-    // cout << "rank: " << rank << "ghost_in_even_m = " << ghost_in_even_m << endl;
     
     
     numHALO = (Nx*Ny*numPspeeds*HALO);
@@ -701,8 +678,8 @@ void OpenChannel3D::initialize_local_partition_variables(){
             for(int x=0;x<Nx;x++){
                 tid=x+y*Nx+z*Nx*Ny;
                 for(int spd=0;spd<numSpd;spd++){
-                    fEven[spd+tid*numSpd]=rho_lbm*w[spd];
-                    fOdd[spd+tid*numSpd]=rho_lbm*w[spd];
+                    fEven[getIdx(tid,spd)]=rho_lbm*w[spd];
+                   //fOdd[getIdx(tid,spd)]=rho_lbm*w[spd];
                 }
             }
         }
@@ -833,7 +810,7 @@ void OpenChannel3D::read_input_file(const string input_file){
 void OpenChannel3D::initialize_lattice_data(){
     switch(LatticeType){
         case(1):
-        numSpd=15;
+        //numSpd=15;
         ex = ex15;
         ey = ey15;
         ez = ez15;
