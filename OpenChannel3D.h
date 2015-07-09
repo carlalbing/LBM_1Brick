@@ -5,6 +5,8 @@
 #include <string>
 #define HALO 1
 
+#define RESTRICT __restrict
+
 using namespace std;
 
 class OpenChannel3D{
@@ -86,11 +88,10 @@ public:
   void initialize_mpi_buffers();
   void D3Q15_process_slices(bool isEven, const int firstSlice,
 		  const int lastSlice);
-  void stream_out_collect(bool isEven,const int z_start,float * buff_out, 
-      const int numStreamSpeeds, const int * streamSpeeds);
-  void stream_in_distribute(bool isEven,const int z_start,
-			const float * buff_in, const int numStreamSpeeds,
-			const int * streamSpeeds);
+  void stream_out_collect(bool isEven, const int z_start, float * RESTRICT buff_out, 
+      const int numStreamSpeeds, const int * RESTRICT streamSpeeds);
+  void stream_in_distribute(bool isEven,const int z_start, const float * RESTRICT buff_in,
+      const int numStreamSpeeds, const int * RESTRICT streamSpeeds);
 
 
 

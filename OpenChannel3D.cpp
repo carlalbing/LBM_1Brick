@@ -61,33 +61,33 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     //	float * uy_l = new float[numEntries];
     //	float * uz_l = new float[numEntries];
     
-    float * fOut;
+    const float * RESTRICT fIn;
     if (isEven){
-        fOut = fEven;
+        fIn = fEven;
     }else{
-        fOut = fOdd;
+        fIn = fOdd;
     }
     
     int nnodes = this->nnodes;
     int numSpd = this->numSpd;
     int Nx = this->Nx;
     int Ny = this->Ny;
-    const float * ex = this->ex;
-    const float * ey = this->ey;
-    const float * ez = this->ez;
-    float * ux_l = this->ux_l;
-    float * uy_l = this->uy_l;
-    float * uz_l = this->uz_l;
-    float * rho_l = this->rho_l;
+    const float * RESTRICT ex = this->ex;
+    const float * RESTRICT ey = this->ey;
+    const float * RESTRICT ez = this->ez;
+    float * RESTRICT ux_l = this->ux_l;
+    float * RESTRICT uy_l = this->uy_l;
+    float * RESTRICT uz_l = this->uz_l;
+    float * RESTRICT rho_l = this->rho_l;
     int totalSlices = this->totalSlices;
-    int * snl = this->snl;
+    const int * RESTRICT snl = this->snl;
     int numMySlices = this->numMySlices;
     int numEntries = Nx*Ny*numMySlices;
     dummyUse(nnodes,numEntries);
     
     #pragma omp parallel for collapse(3)
     #pragma acc parallel loop collapse(3) \
-        present(fOut[0:nnodes*numSpd], snl[0:nnodes]) \
+        present(fIn[0:nnodes*numSpd], snl[0:nnodes]) \
         copyout(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
         copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
     for(int z = HALO;z<(totalSlices-HALO);z++){
@@ -99,7 +99,7 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
                 tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
                 tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
                 for(int spd=0;spd<numSpd;spd++){
-                    float f = fOut[getIdx(nnodes,numSpd,tid_g,spd)];
+                    float f = fIn[getIdx(nnodes,numSpd,tid_g,spd)];
                     tmp_rho+=f;
                     tmp_ux+=ex[spd]*f;
                     tmp_uy+=ey[spd]*f;
@@ -157,8 +157,8 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     // this monstrosity needs to be change into something more simple and clear.
     // it performs on the GPU but is rather unmaintainable.
     
-    const float * fIn;
-    float * fOut;
+    const float * RESTRICT fIn;
+    float * RESTRICT fOut;
     
     if(isEven){
         fIn = fEven; fOut = fOdd;
@@ -167,10 +167,10 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     }
     
     // local copies of class data members needed for acc compiler
-    int* inl = this->inl;
-    int* onl = this->onl;
-    int* snl = this->snl;
-    float* u_bc = this->u_bc;
+    const int* RESTRICT inl = this->inl;
+    const int* RESTRICT onl = this->onl;
+    const int* RESTRICT snl = this->snl;
+    const float* RESTRICT u_bc = this->u_bc;
     int Ny = this->Ny;
     int Nx = this->Nx;
     float omega = this->omega;
@@ -517,13 +517,13 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     }
 }
 
-void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * buff_out, const int numStreamSpeeds, const int * streamSpeeds){
+void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RESTRICT buff_out, const int numStreamSpeeds, const int * RESTRICT streamSpeeds){
     int Ny = this->Ny;
     int Nx = this->Nx;
     int numSpd = this->numSpd;
     int nnodes = this->nnodes;
     
-    float * fIn_b;
+    const float * RESTRICT fIn_b;
     if(isEven) {
       fIn_b = fOdd;
     }else{
@@ -549,24 +549,24 @@ void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * buf
     }
 }
 
-void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const float * buff_in, const int numStreamSpeeds, const int * streamSpeeds){
+void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const float * RESTRICT buff_in, const int numStreamSpeeds, const int * RESTRICT streamSpeeds){
     int Nx = this->Nx;
     int Ny = this->Ny;
     int numSpd = this->numSpd;
     int nnodes = this->nnodes;
     
-    float * fIn_b;
+    float * RESTRICT fOut_b;
     
     if (isEven) {
-      fIn_b = fOdd;
+      fOut_b = fOdd;
     }else{
-      fIn_b = fEven;
+      fOut_b = fEven;
     }
     
     dummyUse(nnodes,numSpd);
     #pragma acc parallel loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
-        present(fIn_b[0:nnodes*numSpd]) \
+        present(fOut_b[0:nnodes*numSpd]) \
         copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
     for(int z=0;z<HALO;z++){
         for(int y=0;y<Ny;y++){
@@ -574,7 +574,7 @@ void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const fl
                 for(int spd=0;spd<numStreamSpeeds;spd++){
                     int tid_l=x+y*Nx+z*Nx*Ny; int tid_g = x+y*Nx+(z+z_start)*Nx*Ny;
                     int stream_spd=streamSpeeds[spd];
-                    fIn_b[getIdx(nnodes, numSpd, tid_g,stream_spd)]=buff_in[tid_l*numStreamSpeeds+spd];
+                    fOut_b[getIdx(nnodes, numSpd, tid_g,stream_spd)]=buff_in[tid_l*numStreamSpeeds+spd];
                 }
             }
         }
