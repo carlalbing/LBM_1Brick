@@ -6,6 +6,13 @@
 #include <stdexcept>
 #include "workArounds.h"
 
+#ifdef USE_NVTX
+    #include <nvToolsExt.h>
+#else
+    #define nvtxRangePush(x)
+    #define nvtxRangePop()
+#endif
+
 // for debugging
 #include <iostream>
 
@@ -118,6 +125,7 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
         }
     }
     
+    nvtxRangePush("MPI WriteFile");
     // generate file names
     ts_ind << vtk_ts;
     density_fn = densityFileStub+ts_ind.str()+fileSuffix;
@@ -151,6 +159,7 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     MPI_File_close(&fh_uz);
     
     vtk_ts++; // increment the dump counter...
+    nvtxRangePop();
 }
 
 void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, const int lastSlice){
@@ -192,19 +201,10 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
             for(int X=0;X<Nx;X++){
                 float f0,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14;
                 float cu,rho,ux,uy,uz,fEq,dz;
-                int X_t,Y_t,Z_t,tid_t,tid;
                 
-                tid=X+Y*Nx+Z*Nx*Ny;
+                int tid=X+Y*Nx+Z*Nx*Ny;
                 
                 //load the data into registers
-                // f0=fIn[tid]; f1=fIn[Nx*Ny*Nz+tid];
-                // f2=fIn[2*Nx*Ny*Nz+tid]; f3=fIn[3*Nx*Ny*Nz+tid];
-                // f4=fIn[4*Nx*Ny*Nz+tid]; f5=fIn[5*Nx*Ny*Nz+tid];
-                // f6=fIn[6*Nx*Ny*Nz+tid]; f7=fIn[7*Nx*Ny*Nz+tid];
-                // f8=fIn[8*Nx*Ny*Nz+tid]; f9=fIn[9*Nx*Ny*Nz+tid];
-                // f10=fIn[10*Nx*Ny*Nz+tid]; f11=fIn[11*Nx*Ny*Nz+tid];
-                // f12=fIn[12*Nx*Ny*Nz+tid]; f13=fIn[13*Nx*Ny*Nz+tid];
-                // f14=fIn[14*Nx*Ny*Nz+tid];
                 f0=fIn[getIdx(nnodes, numSpd, tid,0)]; f1=fIn[getIdx(nnodes, numSpd, tid,1)];
                 f2=fIn[getIdx(nnodes, numSpd, tid,2)]; f3=fIn[getIdx(nnodes, numSpd, tid,3)];
                 f4=fIn[getIdx(nnodes, numSpd, tid,4)]; f5=fIn[getIdx(nnodes, numSpd, tid,5)];
@@ -298,7 +298,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                         
                         ux=0.; uy=0.; uz=u_bc[tid];
                     }
-
+                    
                     fEq=rho*(2.F/9.F)*(1.F-1.5F*(ux*ux+uy*uy+uz*uz));
                     f0=f0-omega*(f0-fEq);
                     
@@ -374,6 +374,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                     
                 }
                 
+                int X_t,Y_t,Z_t,tid_t;
                 //speed 0 ex=ey=ez=0
                 //fOut[tid]=f0;
                 fOut[getIdx(nnodes, numSpd, tid,0)]=f0;
@@ -583,9 +584,12 @@ void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
     MPI_Irecv(ghost_in_m,numHALO,MPI_FLOAT,nd_m,tag_u,comm,&rq_in2);
     // collide and stream interior lattice points
     D3Q15_process_slices(isEven,HALO+1,totalSlices-2*HALO);
+    
     // ensure communication of boundary lattice points is complete
+    nvtxRangePush("MPI_WAIT");
     MPI_Wait(&rq_in1,&stat);
     MPI_Wait(&rq_in2,&stat);
+    nvtxRangePop();
     
     // copy data from i+1 partition into upper boundary slice
       
