@@ -5,6 +5,7 @@
 #include <sstream>
 #include <stdexcept>
 #include "workArounds.h"
+#include <stdlib.h>
 
 // for debugging
 #include <iostream>
@@ -14,6 +15,24 @@ using namespace std;
 OpenChannel3D::OpenChannel3D(const int rk, const int sz, const string input_file):
 rank(rk), size(sz)
 {
+    const char * altDen = getenv("LBM_FN_DEN");
+    const char * altSfx = getenv("LBM_FN_SFX");
+    const char * altUxf = getenv("LBM_FN_UX");
+    const char * altUyf = getenv("LBM_FN_UY");
+    const char * altUzf = getenv("LBM_FN_UZ");
+    // set defaults
+    if (!altDen) { altDen = "density"; }
+    if (!altSfx) { altSfx = ".b_dat"; }
+    if (!altUxf) { altUxf = "ux"; }
+    if (!altUyf) { altUyf = "uy"; }
+    if (!altUzf) { altUzf = "uz"; }
+
+    densityFileStub.assign(altDen);
+    fileSuffix.assign(altSfx);
+    ux_FileStub.assign(altUxf);
+    uy_FileStub.assign(altUyf);
+    uz_FileStub.assign(altUzf);
+
     tag_d = 666; tag_u = 999;
     read_input_file(input_file);
     initialize_lattice_data();
@@ -44,13 +63,8 @@ OpenChannel3D::~OpenChannel3D(){
 
 void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     
-    string densityFileStub("density");
-    string ux_FileStub("ux");
-    string uy_FileStub("uy");
-    string uz_FileStub("uz");
     stringstream ts_ind;
     string ts_ind_str;
-    string fileSuffix(".b_dat");
     string density_fn, ux_fn, uy_fn, uz_fn;
     MPI_File fh_rho, fh_ux, fh_uy, fh_uz;
     MPI_Status mpi_s1, mpi_s2, mpi_s3,mpi_s4;
