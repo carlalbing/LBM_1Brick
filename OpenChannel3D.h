@@ -66,6 +66,13 @@ public:
 	int offset, numEntries;
 	float * rho_l, *ux_l, *uy_l, *uz_l;
 
+	// output filename components
+	string densityFileStub;		// filename for density values
+	string fileSuffix;		// std suffix; e.g. .b_dat
+	string ux_FileStub;		// for x values
+	string uy_FileStub;		// for y values
+	string uz_FileStub;		// for z values
+
 	OpenChannel3D(const int rank, const int size, const string input_file);
   ~OpenChannel3D();
   void write_data(MPI_Comm comm, bool isEven);
