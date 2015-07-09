@@ -60,7 +60,8 @@ int main(int argc, char * argv[])
     #pragma acc data \
         copyin(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes]) \
         copyin(Mspeeds[0:numMspeeds],Pspeeds[0:numPspeeds]) \
-        copyin(fEven[0:nnodes*numSpd],fOdd[0:nnodes*numSpd])
+        copyin(fEven[0:nnodes*numSpd]) \
+        create(fOdd[0:nnodes*numSpd])
         
     {
         // write initial data
