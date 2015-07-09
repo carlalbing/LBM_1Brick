@@ -220,7 +220,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                 uy=f3-f4+f7+f8-f9-f10+f11+f12-f13-f14; uy/=rho;
                 uz=f5-f6+f7+f8+f9+f10-f11-f12-f13-f14; uz/=rho;
                 
-                if(snl[tid]==1){
+                if(snl[tid]){
                     // 1--2
                     cu=f2; f2=f1; f1=cu;
                     //3--4
@@ -237,7 +237,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
                     cu=f11; f11=f10; f10=cu;
                 }else{
                     //if it's on the inl or onl, update
-                    if((inl[tid]==1)||(onl[tid]==1)){
+                    if(inl[tid] || onl[tid]){
                         
                         dz=u_bc[tid]-uz;
                         //speed 1 ex=1 ey=ez=0. w=1./9.
