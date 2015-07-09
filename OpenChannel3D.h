@@ -72,8 +72,11 @@ public:
   #pragma acc routine seq
   static inline unsigned getIdx(const unsigned nnodes, const unsigned numSpd, unsigned cellIdx, unsigned spdIdx) 
   { 
-     //return  cellIdx*numSpd+spdIdx;
+#ifndef _OPENACC
+     return cellIdx*numSpd+spdIdx;
+#else
      return spdIdx*nnodes+cellIdx;
+#endif
   }
 
  private:
