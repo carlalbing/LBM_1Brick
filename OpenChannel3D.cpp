@@ -98,6 +98,7 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
                 tid_l = x+y*Nx+(z-HALO)*Nx*Ny;
                 tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
                 tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
+                #pragma acc loop seq
                 for(int spd=0;spd<numSpd;spd++){
                     float f = fIn[getIdx(nnodes,numSpd,tid_g,spd)];
                     tmp_rho+=f;
