@@ -68,20 +68,7 @@ OpenChannel3D::~OpenChannel3D(){
     
 }
 
-void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
-    
-    stringstream ts_ind;
-    string ts_ind_str;
-    string density_fn, ux_fn, uy_fn, uz_fn;
-    MPI_File fh_rho, fh_ux, fh_uy, fh_uz;
-    MPI_Status mpi_s1, mpi_s2, mpi_s3,mpi_s4;
-    
-    //	// create temporary data buffers
-    //	float * rho_l = new float[numEntries];
-    //	float * ux_l = new float[numEntries];
-    //	float * uy_l = new float[numEntries];
-    //	float * uz_l = new float[numEntries];
-    
+void OpenChannel3D::write_data_GPU2Buf(bool isEven){
     const float * RESTRICT fIn;
     int streamNum;
     if (isEven){
@@ -109,41 +96,64 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     int numEntries = Nx*Ny*numMySlices;
     dummyUse(nnodes,numEntries);
     
-    #pragma acc data \
+    #pragma omp parallel for collapse(3)
+    #pragma acc parallel loop collapse(3) async(streamNum) wait(0,1,2,3) \
         present(fIn[0:nnodes*numSpd], snl[0:nnodes]) \
-        create(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
+        present(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
         copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
+    for(int z = HALO;z<(totalSlices-HALO);z++){
+        for(int y = 0;y<Ny;y++){
+            for(int x = 0;x<Nx;x++){
+                int tid_l, tid_g;
+                float tmp_rho, tmp_ux, tmp_uy, tmp_uz;
+                tid_l = x+y*Nx+(z-HALO)*Nx*Ny;
+                tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
+                tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
+                #pragma acc loop seq
+                for(int spd=0;spd<numSpd;spd++){
+                    float f = fIn[getIdx(nnodes,numSpd,tid_g,spd)];
+                    tmp_rho+=f;
+                    tmp_ux+=ex[spd]*f;
+                    tmp_uy+=ey[spd]*f;
+                    tmp_uz+=ez[spd]*f;
+                }
+                rho_l[tid_l]=tmp_rho;
+                if(snl[tid_g]==1){
+                    ux_l[tid_l]=0.; uy_l[tid_l]=0.; uz_l[tid_l]=0.;
+                }else{
+                    ux_l[tid_l]=tmp_ux*(1./tmp_rho);
+                    uy_l[tid_l]=tmp_uy*(1./tmp_rho);
+                    uz_l[tid_l]=tmp_uz*(1./tmp_rho);
+                }
+            }
+        }
+    }
+}
+
+void OpenChannel3D::write_data_Buf2File(MPI_Comm comm, bool isEven){
+    stringstream ts_ind;
+    string ts_ind_str;
+    string density_fn, ux_fn, uy_fn, uz_fn;
+    MPI_File fh_rho, fh_ux, fh_uy, fh_uz;
+    MPI_Status mpi_s1, mpi_s2, mpi_s3,mpi_s4;
+    
+    int streamNum;
+    if (isEven){
+        streamNum = 6;
+    }else{
+        streamNum = 9;
+    }
+    
+    float * RESTRICT ux_l = this->ux_l;
+    float * RESTRICT uy_l = this->uy_l;
+    float * RESTRICT uz_l = this->uz_l;
+    float * RESTRICT rho_l = this->rho_l;
+    int numEntries = Nx*Ny*numMySlices;
+    dummyUse(numEntries);
+    
+    #pragma acc data \
+        present(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries])
     {
-      #pragma omp parallel for collapse(3)
-      #pragma acc parallel loop collapse(3)  async(streamNum) wait(0,1,2,3)
-      for(int z = HALO;z<(totalSlices-HALO);z++){
-          for(int y = 0;y<Ny;y++){
-              for(int x = 0;x<Nx;x++){
-                  int tid_l, tid_g;
-                  float tmp_rho, tmp_ux, tmp_uy, tmp_uz;
-                  tid_l = x+y*Nx+(z-HALO)*Nx*Ny;
-                  tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
-                  tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
-                  #pragma acc loop seq
-                  for(int spd=0;spd<numSpd;spd++){
-                      float f = fIn[getIdx(nnodes,numSpd,tid_g,spd)];
-                      tmp_rho+=f;
-                      tmp_ux+=ex[spd]*f;
-                      tmp_uy+=ey[spd]*f;
-                      tmp_uz+=ez[spd]*f;
-                  }
-                  rho_l[tid_l]=tmp_rho;
-                  if(snl[tid_g]==1){
-                      ux_l[tid_l]=0.; uy_l[tid_l]=0.; uz_l[tid_l]=0.;
-                  }else{
-                      ux_l[tid_l]=tmp_ux*(1./tmp_rho);
-                      uy_l[tid_l]=tmp_uy*(1./tmp_rho);
-                      uz_l[tid_l]=tmp_uz*(1./tmp_rho);
-                  }
-              }
-          }
-      }
-      
       nvtxRangePush("MPI WriteFile");
       // generate file names
       ts_ind << vtk_ts;
@@ -165,7 +175,7 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
       MPI_File_open(comm,(char*)uz_fn.c_str(),
       MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_uz);
       
-      
+      #pragma acc wait(streamNum)
       #pragma acc update self(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) wait(streamNum)
       //write your chunk of data
       MPI_File_write_at(fh_rho,offset,rho_l,numEntries,MPI_FLOAT,&mpi_s1);
