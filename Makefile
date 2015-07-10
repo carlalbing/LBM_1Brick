@@ -1,6 +1,6 @@
 MPI_CC=CC
 ifeq ($(PE_ENV),PGI)
-	MPI_FLAGS=-O3 -fast -acc -Minfo=acc -Mnoopenmp
+	MPI_FLAGS=-O3 -fast -acc -Minfo=acc -Mnoopenmp -Mcuda=maxregcount:72
 	ifeq ($(CRAYPAT_COMPILER_OPTIONS),1)
 		MPI_FLAGS+= -DCRAYPAT
 	endif
