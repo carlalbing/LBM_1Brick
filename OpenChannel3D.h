@@ -75,7 +75,8 @@ public:
 
 	OpenChannel3D(const int rank, const int size, const string input_file);
   ~OpenChannel3D();
-  void write_data(MPI_Comm comm, bool isEven);
+  void write_data_GPU2Buf(bool isEven);
+  void write_data_Buf2File(MPI_Comm comm, bool isEven);
   void take_lbm_timestep(bool isEven, MPI_Comm comm);
   void take_lbm_timestep_acc(bool isEven, MPI_Comm comm);
   

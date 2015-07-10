@@ -54,19 +54,26 @@ int main(int argc, char * argv[])
     float * fEven = pp.fEven;
     float * fOdd = pp.fOdd;
     
+    float* ux_l = pp.ux_l;
+    float* uy_l = pp.uy_l;
+    float* uz_l = pp.uz_l;
+    float* rho_l = pp.rho_l;
+    int numEntries = pp.numEntries;
     
-    dummyUse(inl, onl, snl, u_bc, nnodes, Mspeeds, Pspeeds, numPspeeds, numMspeeds,numSpd,fEven,fOdd);
+    
+    dummyUse(inl, onl, snl, u_bc, nnodes, Mspeeds, Pspeeds, numPspeeds, numMspeeds,numSpd,fEven,fOdd, ux_l, uy_l, uz_l, rho_l, numEntries);
     
     #pragma acc data \
         copyin(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes]) \
         copyin(Mspeeds[0:numMspeeds],Pspeeds[0:numPspeeds]) \
         copyin(fEven[0:nnodes*numSpd]) \
-        create(fOdd[0:nnodes*numSpd])
-        
+        create(fOdd[0:nnodes*numSpd]) \
+        create(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries])        
     {
         // write initial data
         // (data processing script will be expecting it)
-        pp.write_data(MPI_COMM_WORLD,true);
+        pp.write_data_GPU2Buf(true);
+        pp.write_data_Buf2File(MPI_COMM_WORLD,true);
         
         double time_start, time_end, ex_time, LPU_sec, gNumLP;
         time_start = MPI_Wtime();
@@ -87,7 +94,8 @@ int main(int argc, char * argv[])
             
             if((ts+1)%(pp.plot_freq)==0){
                 // write data at requested intervals.
-                pp.write_data(MPI_COMM_WORLD,ts%2==0);
+                pp.write_data_GPU2Buf(ts%2==0);
+                pp.write_data_Buf2File(MPI_COMM_WORLD,ts%2==0);
             }
         }
         time_end = MPI_Wtime();
