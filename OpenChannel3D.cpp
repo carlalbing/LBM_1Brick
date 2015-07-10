@@ -83,10 +83,13 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     //	float * uz_l = new float[numEntries];
     
     const float * RESTRICT fIn;
+    int streamNum;
     if (isEven){
         fIn = fEven;
+        streamNum = 6;
     }else{
         fIn = fOdd;
+        streamNum = 9;
     }
     
     int nnodes = this->nnodes;
@@ -106,88 +109,94 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
     int numEntries = Nx*Ny*numMySlices;
     dummyUse(nnodes,numEntries);
     
-    #pragma omp parallel for collapse(3)
-    #pragma acc parallel loop collapse(3) \
+    #pragma acc data \
         present(fIn[0:nnodes*numSpd], snl[0:nnodes]) \
-        copyout(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
+        create(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
         copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
-    for(int z = HALO;z<(totalSlices-HALO);z++){
-        for(int y = 0;y<Ny;y++){
-            for(int x = 0;x<Nx;x++){
-                int tid_l, tid_g;
-                float tmp_rho, tmp_ux, tmp_uy, tmp_uz;
-                tid_l = x+y*Nx+(z-HALO)*Nx*Ny;
-                tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
-                tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
-                #pragma acc loop seq
-                for(int spd=0;spd<numSpd;spd++){
-                    float f = fIn[getIdx(nnodes,numSpd,tid_g,spd)];
-                    tmp_rho+=f;
-                    tmp_ux+=ex[spd]*f;
-                    tmp_uy+=ey[spd]*f;
-                    tmp_uz+=ez[spd]*f;
-                }
-                rho_l[tid_l]=tmp_rho;
-                if(snl[tid_g]==1){
-                    ux_l[tid_l]=0.; uy_l[tid_l]=0.; uz_l[tid_l]=0.;
-                }else{
-                    ux_l[tid_l]=tmp_ux*(1./tmp_rho);
-                    uy_l[tid_l]=tmp_uy*(1./tmp_rho);
-                    uz_l[tid_l]=tmp_uz*(1./tmp_rho);
-                }
-            }
-        }
+    {
+      #pragma omp parallel for collapse(3)
+      #pragma acc parallel loop collapse(3)  async(streamNum) wait(0,1,2,3)
+      for(int z = HALO;z<(totalSlices-HALO);z++){
+          for(int y = 0;y<Ny;y++){
+              for(int x = 0;x<Nx;x++){
+                  int tid_l, tid_g;
+                  float tmp_rho, tmp_ux, tmp_uy, tmp_uz;
+                  tid_l = x+y*Nx+(z-HALO)*Nx*Ny;
+                  tmp_rho = 0; tid_g = x+y*Nx+z*Nx*Ny;
+                  tmp_ux = 0; tmp_uy = 0; tmp_uz = 0;
+                  #pragma acc loop seq
+                  for(int spd=0;spd<numSpd;spd++){
+                      float f = fIn[getIdx(nnodes,numSpd,tid_g,spd)];
+                      tmp_rho+=f;
+                      tmp_ux+=ex[spd]*f;
+                      tmp_uy+=ey[spd]*f;
+                      tmp_uz+=ez[spd]*f;
+                  }
+                  rho_l[tid_l]=tmp_rho;
+                  if(snl[tid_g]==1){
+                      ux_l[tid_l]=0.; uy_l[tid_l]=0.; uz_l[tid_l]=0.;
+                  }else{
+                      ux_l[tid_l]=tmp_ux*(1./tmp_rho);
+                      uy_l[tid_l]=tmp_uy*(1./tmp_rho);
+                      uz_l[tid_l]=tmp_uz*(1./tmp_rho);
+                  }
+              }
+          }
+      }
+      
+      nvtxRangePush("MPI WriteFile");
+      // generate file names
+      ts_ind << vtk_ts;
+      density_fn = densityFileStub+ts_ind.str()+fileSuffix;
+      ux_fn = ux_FileStub+ts_ind.str()+fileSuffix;
+      uy_fn = uy_FileStub+ts_ind.str()+fileSuffix;
+      uz_fn = uz_FileStub+ts_ind.str()+fileSuffix;
+      
+      // open MPI file for parallel IO
+      MPI_File_open(comm,(char*)density_fn.c_str(),
+      MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_rho);
+      
+      MPI_File_open(comm,(char*)ux_fn.c_str(),
+      MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_ux);
+      
+      MPI_File_open(comm,(char*)uy_fn.c_str(),
+      MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_uy);
+      
+      MPI_File_open(comm,(char*)uz_fn.c_str(),
+      MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_uz);
+      
+      
+      #pragma acc update self(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) wait(streamNum)
+      //write your chunk of data
+      MPI_File_write_at(fh_rho,offset,rho_l,numEntries,MPI_FLOAT,&mpi_s1);
+      MPI_File_write_at(fh_ux,offset,ux_l,numEntries,MPI_FLOAT,&mpi_s2);
+      MPI_File_write_at(fh_uy,offset,uy_l,numEntries,MPI_FLOAT,&mpi_s3);
+      MPI_File_write_at(fh_uz,offset,uz_l,numEntries,MPI_FLOAT,&mpi_s4);
+      
+      //close the files
+      MPI_File_close(&fh_rho);
+      MPI_File_close(&fh_ux);
+      MPI_File_close(&fh_uy);
+      MPI_File_close(&fh_uz);
+      
+      vtk_ts++; // increment the dump counter...
+      nvtxRangePop();
     }
-    
-    nvtxRangePush("MPI WriteFile");
-    // generate file names
-    ts_ind << vtk_ts;
-    density_fn = densityFileStub+ts_ind.str()+fileSuffix;
-    ux_fn = ux_FileStub+ts_ind.str()+fileSuffix;
-    uy_fn = uy_FileStub+ts_ind.str()+fileSuffix;
-    uz_fn = uz_FileStub+ts_ind.str()+fileSuffix;
-    
-    // open MPI file for parallel IO
-    MPI_File_open(comm,(char*)density_fn.c_str(),
-    MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_rho);
-    
-    MPI_File_open(comm,(char*)ux_fn.c_str(),
-    MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_ux);
-    
-    MPI_File_open(comm,(char*)uy_fn.c_str(),
-    MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_uy);
-    
-    MPI_File_open(comm,(char*)uz_fn.c_str(),
-    MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_uz);
-    
-    //write your chunk of data
-    MPI_File_write_at(fh_rho,offset,rho_l,numEntries,MPI_FLOAT,&mpi_s1);
-    MPI_File_write_at(fh_ux,offset,ux_l,numEntries,MPI_FLOAT,&mpi_s2);
-    MPI_File_write_at(fh_uy,offset,uy_l,numEntries,MPI_FLOAT,&mpi_s3);
-    MPI_File_write_at(fh_uz,offset,uz_l,numEntries,MPI_FLOAT,&mpi_s4);
-    
-    //close the files
-    MPI_File_close(&fh_rho);
-    MPI_File_close(&fh_ux);
-    MPI_File_close(&fh_uy);
-    MPI_File_close(&fh_uz);
-    
-    vtk_ts++; // increment the dump counter...
-    nvtxRangePop();
 }
 
-void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, const int lastSlice){
+void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, const int lastSlice, int streamNum, int waitNum){
     
     // this monstrosity needs to be change into something more simple and clear.
     // it performs on the GPU but is rather unmaintainable.
     
     const float * RESTRICT fIn;
     float * RESTRICT fOut;
+    int writeWaitNum;
     
     if(isEven){
-        fIn = fEven; fOut = fOdd;
+        fIn = fEven; fOut = fOdd; writeWaitNum=6;
     }else{
-        fIn = fOdd; fOut = fEven;
+        fIn = fOdd; fOut = fEven; writeWaitNum=9;
     }
     
     // local copies of class data members needed for acc compiler
@@ -206,7 +215,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     //Nz=lastSlice-firstSlice;
     const int numSpd=15;
     #pragma omp parallel for collapse(3)
-    #pragma acc parallel loop collapse(3) gang vector(128) \
+    #pragma acc parallel loop wait(writeWaitNum,waitNum) async(streamNum) collapse(3) gang vector(128) \
         present(fIn[0:nnodes*numSpd]) \
         present(fOut[0:nnodes*numSpd]) \
         present(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
@@ -514,7 +523,7 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     }
 }
 
-void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RESTRICT buff_out, const int numStreamSpeeds, const int * RESTRICT streamSpeeds){
+void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RESTRICT buff_out, const int numStreamSpeeds, const int * RESTRICT streamSpeeds, int streamNum){
     int Ny = this->Ny;
     int Nx = this->Nx;
     int numSpd = this->numSpd;
@@ -529,7 +538,7 @@ void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RES
     
     dummyUse(nnodes,numSpd);
     
-    #pragma acc parallel loop collapse(3) \
+    #pragma acc parallel loop async(streamNum) collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
         present(fIn_b[0:nnodes*numSpd]) \
         copyout(buff_out[0:Nx*Ny*numStreamSpeeds*HALO])
@@ -546,7 +555,7 @@ void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RES
     }
 }
 
-void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const float * RESTRICT buff_in, const int numStreamSpeeds, const int * RESTRICT streamSpeeds){
+void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const float * RESTRICT buff_in, const int numStreamSpeeds, const int * RESTRICT streamSpeeds, int streamNum){
     int Nx = this->Nx;
     int Ny = this->Ny;
     int numSpd = this->numSpd;
@@ -561,7 +570,7 @@ void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const fl
     }
     
     dummyUse(nnodes,numSpd);
-    #pragma acc parallel loop collapse(3) \
+    #pragma acc parallel loop async(streamNum) collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
         present(fOut_b[0:nnodes*numSpd]) \
         copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
@@ -579,39 +588,61 @@ void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const fl
 }
 
 void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
+
+    // --- Start Sequential Dependency A -------
+    int waitNum;
+    if (isEven) {
+       waitNum = 3;
+    }else{
+       waitNum = 2;
+    }
     // collide and stream lower boundary slices
-    D3Q15_process_slices(isEven,HALO,HALO+1);
+    D3Q15_process_slices(isEven,HALO,HALO+1,0,waitNum);
     
     // collect data from lower HALO slice z = 0
-    stream_out_collect(isEven,0,ghost_out_m,numMspeeds,Mspeeds);
+    stream_out_collect(isEven,0,ghost_out_m,numMspeeds,Mspeeds,0);
+    #pragma acc wait(0)
     // begin communication to ghost_p_in
     MPI_Isend(ghost_out_m,numHALO,MPI_FLOAT,nd_m,tag_d,comm, &rq_out1);
     MPI_Irecv(ghost_in_p,numHALO,MPI_FLOAT,nd_p,tag_d,comm,&rq_in1);
+    // ---  Sequential Dependency A ------
+    
+    // --- Start Sequential Dependency B -----
     // collide and stream upper boundary slices
-    D3Q15_process_slices(isEven,totalSlices-2*HALO,totalSlices-HALO);
+    D3Q15_process_slices(isEven,totalSlices-2*HALO,totalSlices-HALO,1,waitNum);
     
     // collect data from upper HALO slice; z = totalSlices-1
-       
-    stream_out_collect(isEven,totalSlices-HALO,ghost_out_p,numPspeeds,Pspeeds);
+    stream_out_collect(isEven,totalSlices-HALO,ghost_out_p,numPspeeds,Pspeeds,1);
+    #pragma acc wait(1)
     // begin communication to ghost_m_in
     MPI_Isend(ghost_out_p,numHALO,MPI_FLOAT,nd_p,tag_u,comm,&rq_out2);
     MPI_Irecv(ghost_in_m,numHALO,MPI_FLOAT,nd_m,tag_u,comm,&rq_in2);
-    // collide and stream interior lattice points
-    D3Q15_process_slices(isEven,HALO+1,totalSlices-2*HALO);
+    // ---  Sequential Dependency B -----
     
+    // --- Start Sequential Dependency C -----
+    int streamNum;
+    if (isEven) {
+       streamNum = 2;
+    }else{
+       streamNum = 3;
+    }
+
+    // collide and stream interior lattice points
+    D3Q15_process_slices(isEven,HALO+1,totalSlices-2*HALO,streamNum,waitNum);
+    // --- End Sequential Dependency C -----
     // ensure communication of boundary lattice points is complete
     nvtxRangePush("MPI_WAIT");
-    MPI_Wait(&rq_in1,&stat);
-    MPI_Wait(&rq_in2,&stat);
+    MPI_Wait(&rq_in1,&stat); // Sequential Dependency A
+    MPI_Wait(&rq_in2,&stat); // Sequential Dependency B
     nvtxRangePop();
     
     // copy data from i+1 partition into upper boundary slice
-      
-    stream_in_distribute(isEven,totalSlices-2*HALO,ghost_in_p,numMspeeds,Mspeeds);
+    // Sequential Dependency A  
+    stream_in_distribute(isEven,totalSlices-2*HALO,ghost_in_p,numMspeeds,Mspeeds,0);
     
-    
+    // Sequential Dependency B
     // copy data from i-1 partition into lower boundary slice
-    stream_in_distribute(isEven,HALO,ghost_in_m,numPspeeds,Pspeeds);
+    stream_in_distribute(isEven,HALO,ghost_in_m,numPspeeds,Pspeeds,1);
 }
 
 void OpenChannel3D::initialize_mpi_buffers(){

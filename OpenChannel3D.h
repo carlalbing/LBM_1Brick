@@ -94,11 +94,11 @@ public:
   void initialize_local_partition_variables();
   void initialize_mpi_buffers();
   void D3Q15_process_slices(bool isEven, const int firstSlice,
-		  const int lastSlice);
+		  const int lastSlice, int streamNum, int waitNum);
   void stream_out_collect(bool isEven, const int z_start, float * RESTRICT buff_out, 
-      const int numStreamSpeeds, const int * RESTRICT streamSpeeds);
+      const int numStreamSpeeds, const int * RESTRICT streamSpeeds, int streamNum);
   void stream_in_distribute(bool isEven,const int z_start, const float * RESTRICT buff_in,
-      const int numStreamSpeeds, const int * RESTRICT streamSpeeds);
+      const int numStreamSpeeds, const int * RESTRICT streamSpeeds, int streamNum);
 
 
 
