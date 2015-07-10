@@ -78,6 +78,7 @@ public:
   void write_data_GPU2Buf(bool isEven);
   void write_data_Buf2File(MPI_Comm comm, bool isEven);
   void take_lbm_timestep(bool isEven, MPI_Comm comm);
+  void take_lbm_timestep_acc(bool isEven, MPI_Comm comm);
   
   #pragma acc routine seq
   static inline unsigned getIdx(const unsigned nnodes, const unsigned numSpd, unsigned cellIdx, unsigned spdIdx) 
