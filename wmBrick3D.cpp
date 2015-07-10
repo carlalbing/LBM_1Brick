@@ -80,6 +80,7 @@ int main(int argc, char * argv[])
         int ts;
         for(ts = 0; ts<pp.Num_ts;ts+=pp.plot_freq){
             #pragma omp parallel num_threads(2)
+            #pragma omp single
             {
                 #pragma omp task
                 for(int ts2 = ts; ts2<ts+pp.plot_freq; ts2++){
