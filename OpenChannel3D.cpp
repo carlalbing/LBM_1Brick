@@ -587,6 +587,69 @@ void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const fl
     }
 }
 
+void OpenChannel3D::take_lbm_timestep_acc(bool isEven, MPI_Comm comm){
+
+    // --- Start Sequential Dependency A -------
+    int waitNum;
+    if (isEven) {
+       waitNum = 3;
+    }else{
+       waitNum = 2;
+    }
+    // collide and stream lower boundary slices
+    D3Q15_process_slices(isEven,HALO,HALO+1,0,waitNum);
+    
+    // collect data from lower HALO slice z = 0
+    stream_out_collect(isEven,0,ghost_out_m,numMspeeds,Mspeeds,0);
+    
+     // --- Start Sequential Dependency B -----
+    // collide and stream upper boundary slices
+    D3Q15_process_slices(isEven,totalSlices-2*HALO,totalSlices-HALO,1,waitNum);
+    
+    // collect data from upper HALO slice; z = totalSlices-1
+    stream_out_collect(isEven,totalSlices-HALO,ghost_out_p,numPspeeds,Pspeeds,1);
+    
+     // --- Start Sequential Dependency C -----
+    int streamNum;
+    if (isEven) {
+       streamNum = 2;
+    }else{
+       streamNum = 3;
+    }
+
+    // collide and stream interior lattice points
+    D3Q15_process_slices(isEven,HALO+1,totalSlices-2*HALO,streamNum,waitNum);
+    // --- End Sequential Dependency C -----    
+    
+    #pragma acc wait(0)
+    // begin communication to ghost_p_in
+    MPI_Isend(ghost_out_m,numHALO,MPI_FLOAT,nd_m,tag_d,comm, &rq_out1);
+    MPI_Irecv(ghost_in_p,numHALO,MPI_FLOAT,nd_p,tag_d,comm,&rq_in1);
+    // ---  Sequential Dependency A ------
+    
+   
+    #pragma acc wait(1)
+    // begin communication to ghost_m_in
+    MPI_Isend(ghost_out_p,numHALO,MPI_FLOAT,nd_p,tag_u,comm,&rq_out2);
+    MPI_Irecv(ghost_in_m,numHALO,MPI_FLOAT,nd_m,tag_u,comm,&rq_in2);
+    // ---  Sequential Dependency B -----
+    
+   
+    // ensure communication of boundary lattice points is complete
+    nvtxRangePush("MPI_WAIT");
+    MPI_Wait(&rq_in1,&stat); // Sequential Dependency A
+    MPI_Wait(&rq_in2,&stat); // Sequential Dependency B
+    nvtxRangePop();
+    
+    // copy data from i+1 partition into upper boundary slice
+    // Sequential Dependency A  
+    stream_in_distribute(isEven,totalSlices-2*HALO,ghost_in_p,numMspeeds,Mspeeds,0);
+    
+    // Sequential Dependency B
+    // copy data from i-1 partition into lower boundary slice
+    stream_in_distribute(isEven,HALO,ghost_in_m,numPspeeds,Pspeeds,1);
+}
+
 void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
 
     // --- Start Sequential Dependency A -------
