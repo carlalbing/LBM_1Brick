@@ -77,26 +77,26 @@ int main(int argc, char * argv[])
         
         double time_start, time_end, ex_time, LPU_sec, gNumLP;
         time_start = MPI_Wtime();
-        for(int ts = 0; ts<pp.Num_ts;ts++){
-            // say something comforting about the problem progress
-            if((ts+1)%(pp.ts_rep_freq)==0){
-                if(rank==0){
-                    cout << "Executing time step number " << ts+1 << endl;
+        for(int ts = 0; ts<pp.Num_ts;ts+=pp.plot_freq){
+            for(int ts2 = ts; ts2<ts+pp.plot_freq; ts2++){
+                // say something comforting about the problem progress
+                if((ts2+1)%(pp.ts_rep_freq)==0){
+                    if(rank==0){
+                        cout << "Executing time step number " << ts2+1 << endl;
+                    }
+                    
                 }
                 
+                #ifdef _OPENACC
+                  pp.take_lbm_timestep_acc(ts2%2==0,MPI_COMM_WORLD); // weird function call sig.
+                #else
+                  pp.take_lbm_timestep(ts2%2==0,MPI_COMM_WORLD);
+                #endif
             }
             
-            #ifdef _OPENACC
-              pp.take_lbm_timestep_acc(ts%2==0,MPI_COMM_WORLD); // weird function call sig.
-            #else
-              pp.take_lbm_timestep(ts%2==0,MPI_COMM_WORLD);
-            #endif
-            
-            if((ts+1)%(pp.plot_freq)==0){
-                // write data at requested intervals.
-                pp.write_data_GPU2Buf(ts%2==0);
-                pp.write_data_Buf2File(MPI_COMM_WORLD,ts%2==0);
-            }
+            // write data at requested intervals.
+            pp.write_data_GPU2Buf((ts+pp.plot_freq-1)%2==0);
+            pp.write_data_Buf2File(MPI_COMM_WORLD,(ts+pp.plot_freq-1)%2==0);
         }
         time_end = MPI_Wtime();
         
