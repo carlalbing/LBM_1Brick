@@ -79,10 +79,14 @@ int main(int argc, char * argv[])
         time_start = MPI_Wtime();
         int ts;
         for(ts = 0; ts<pp.Num_ts;ts+=pp.plot_freq){
+#ifdef _OPENACC
             #pragma omp parallel num_threads(2)
             #pragma omp single
+#endif
             {
+#ifdef _OPENACC
                 #pragma omp task
+#endif
                 for(int ts2 = ts; ts2<ts+pp.plot_freq; ts2++){
                     // say something comforting about the problem progress
                     if((ts2+1)%(pp.ts_rep_freq)==0){
@@ -99,7 +103,9 @@ int main(int argc, char * argv[])
                     #endif
                 }
                 
+#ifdef _OPENACC
                 #pragma omp task
+#endif
                 if(ts == 0)
                     pp.write_data_Buf2File(MPI_COMM_WORLD, true);
                 else
