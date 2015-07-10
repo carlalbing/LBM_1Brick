@@ -97,7 +97,8 @@ void OpenChannel3D::write_data_GPU2Buf(bool isEven){
     dummyUse(nnodes,numEntries);
     
     #pragma omp parallel for collapse(3)
-    #pragma acc parallel loop collapse(3) async(streamNum) wait(0,1,2,3) \
+    #pragma acc parallel async(streamNum) wait(0, 1, 2, 3, 6, 9) \
+        loop collapse(3) \
         present(fIn[0:nnodes*numSpd], snl[0:nnodes]) \
         present(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
         copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
@@ -175,8 +176,7 @@ void OpenChannel3D::write_data_Buf2File(MPI_Comm comm, bool isEven){
       MPI_File_open(comm,(char*)uz_fn.c_str(),
       MPI_MODE_CREATE|MPI_MODE_WRONLY,MPI_INFO_NULL,&fh_uz);
       
-      #pragma acc wait(streamNum)
-      #pragma acc update self(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) wait(streamNum)
+      #pragma acc update wait(streamNum) self(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries])
       //write your chunk of data
       MPI_File_write_at(fh_rho,offset,rho_l,numEntries,MPI_FLOAT,&mpi_s1);
       MPI_File_write_at(fh_ux,offset,ux_l,numEntries,MPI_FLOAT,&mpi_s2);
@@ -204,9 +204,9 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     int writeWaitNum;
     
     if(isEven){
-        fIn = fEven; fOut = fOdd; writeWaitNum=6;
+        fIn = fEven; fOut = fOdd; writeWaitNum=9;
     }else{
-        fIn = fOdd; fOut = fEven; writeWaitNum=9;
+        fIn = fOdd; fOut = fEven; writeWaitNum=6;
     }
     
     // local copies of class data members needed for acc compiler
@@ -225,7 +225,8 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     //Nz=lastSlice-firstSlice;
     const int numSpd=15;
     #pragma omp parallel for collapse(3)
-    #pragma acc parallel loop wait(writeWaitNum,waitNum) async(streamNum) collapse(3) gang vector(128) \
+    #pragma acc parallel async(streamNum) wait(writeWaitNum,waitNum) \
+        loop collapse(3) gang vector(128) \
         present(fIn[0:nnodes*numSpd]) \
         present(fOut[0:nnodes*numSpd]) \
         present(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
@@ -548,7 +549,8 @@ void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RES
     
     dummyUse(nnodes,numSpd);
     
-    #pragma acc parallel loop async(streamNum) collapse(3) \
+    #pragma acc parallel async(streamNum) \
+        loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
         present(fIn_b[0:nnodes*numSpd]) \
         copyout(buff_out[0:Nx*Ny*numStreamSpeeds*HALO])
@@ -580,7 +582,8 @@ void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const fl
     }
     
     dummyUse(nnodes,numSpd);
-    #pragma acc parallel loop async(streamNum) collapse(3) \
+    #pragma acc parallel async(streamNum) \
+        loop collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
         present(fOut_b[0:nnodes*numSpd]) \
         copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
@@ -631,15 +634,15 @@ void OpenChannel3D::take_lbm_timestep_acc(bool isEven, MPI_Comm comm){
     D3Q15_process_slices(isEven,HALO+1,totalSlices-2*HALO,streamNum,waitNum);
     // --- End Sequential Dependency C -----    
     
-    #pragma acc wait(0)
     // begin communication to ghost_p_in
+    #pragma acc wait(0)
     MPI_Isend(ghost_out_m,numHALO,MPI_FLOAT,nd_m,tag_d,comm, &rq_out1);
     MPI_Irecv(ghost_in_p,numHALO,MPI_FLOAT,nd_p,tag_d,comm,&rq_in1);
     // ---  Sequential Dependency A ------
     
    
-    #pragma acc wait(1)
     // begin communication to ghost_m_in
+    #pragma acc wait(1)
     MPI_Isend(ghost_out_p,numHALO,MPI_FLOAT,nd_p,tag_u,comm,&rq_out2);
     MPI_Irecv(ghost_in_m,numHALO,MPI_FLOAT,nd_m,tag_u,comm,&rq_in2);
     // ---  Sequential Dependency B -----
@@ -651,13 +654,13 @@ void OpenChannel3D::take_lbm_timestep_acc(bool isEven, MPI_Comm comm){
     MPI_Wait(&rq_in2,&stat); // Sequential Dependency B
     nvtxRangePop();
     
-    // copy data from i+1 partition into upper boundary slice
     // Sequential Dependency A  
-    stream_in_distribute(isEven,totalSlices-2*HALO,ghost_in_p,numMspeeds,Mspeeds,0);
+    // copy data from i-1 partition into lower boundary slice
+    stream_in_distribute(isEven,HALO,ghost_in_m,numPspeeds,Pspeeds,0);
     
     // Sequential Dependency B
-    // copy data from i-1 partition into lower boundary slice
-    stream_in_distribute(isEven,HALO,ghost_in_m,numPspeeds,Pspeeds,1);
+    // copy data from i+1 partition into upper boundary slice
+    stream_in_distribute(isEven,totalSlices-2*HALO,ghost_in_p,numMspeeds,Mspeeds,1);
 }
 
 void OpenChannel3D::take_lbm_timestep(bool isEven, MPI_Comm comm){
