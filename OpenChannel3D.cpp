@@ -96,7 +96,9 @@ void OpenChannel3D::write_data_GPU2Buf(bool isEven){
     int numEntries = Nx*Ny*numMySlices;
     dummyUse(nnodes,numEntries);
     
-    #pragma omp parallel for collapse(3)
+    #ifndef _OPENACC
+      #pragma omp parallel for collapse(3)
+    #endif
     #pragma acc parallel async(streamNum) wait(0, 1, 2, 3, 6, 9) \
         loop collapse(3) \
         present(fIn[0:nnodes*numSpd], snl[0:nnodes]) \
@@ -224,7 +226,9 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     
     //Nz=lastSlice-firstSlice;
     const int numSpd=15;
-    #pragma omp parallel for collapse(3)
+    #ifndef _OPENACC
+      #pragma omp parallel for collapse(3)
+    #endif
     #pragma acc parallel async(streamNum) wait(writeWaitNum,waitNum) \
         loop collapse(3) gang vector(128) \
         present(fIn[0:nnodes*numSpd]) \
