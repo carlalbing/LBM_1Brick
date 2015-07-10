@@ -114,7 +114,9 @@ void OpenChannel3D::write_data(MPI_Comm comm, bool isEven){
         create(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
         copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
     {
+    #ifndef _OPENACC
       #pragma omp parallel for collapse(3)
+    #endif
       #pragma acc parallel loop collapse(3)  async(streamNum) wait(0,1,2,3)
       for(int z = HALO;z<(totalSlices-HALO);z++){
           for(int y = 0;y<Ny;y++){
@@ -214,7 +216,9 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     
     //Nz=lastSlice-firstSlice;
     const int numSpd=15;
-    #pragma omp parallel for collapse(3)
+    #ifndef _OPENACC
+      #pragma omp parallel for collapse(3)
+    #endif
     #pragma acc parallel loop wait(writeWaitNum,waitNum) async(streamNum) collapse(3) gang vector(128) \
         present(fIn[0:nnodes*numSpd]) \
         present(fOut[0:nnodes*numSpd]) \

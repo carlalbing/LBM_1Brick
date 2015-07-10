@@ -1,11 +1,11 @@
 MPI_CC=CC
 ifeq ($(PE_ENV),PGI)
-	MPI_FLAGS=-O3 -fast -acc -Minfo=acc -Mnoopenmp
+	MPI_FLAGS=-O3 -fast -acc -Minfo=acc -mp
 	ifeq ($(CRAYPAT_COMPILER_OPTIONS),1)
 		MPI_FLAGS+= -DCRAYPAT
 	endif
 else
-	MPI_FLAGS=-O3 -hnoomp -hacc -hlist=m
+	MPI_FLAGS=-O3 -homp -hacc -hlist=m 
 endif
 
 
