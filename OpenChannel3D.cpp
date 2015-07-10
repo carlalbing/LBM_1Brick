@@ -99,8 +99,8 @@ void OpenChannel3D::write_data_GPU2Buf(bool isEven){
     #ifndef _OPENACC
       #pragma omp parallel for collapse(3)
     #endif
-    #pragma acc parallel async(streamNum) wait(0, 1, 2, 3, 6, 9) \
-        loop collapse(3) \
+    #pragma acc parallel loop async(streamNum) wait(0, 1, 2, 3, 6, 9) \
+        collapse(3) \
         present(fIn[0:nnodes*numSpd], snl[0:nnodes]) \
         present(ux_l[0:numEntries],uy_l[0:numEntries],uz_l[0:numEntries],rho_l[0:numEntries]) \
         copyin(ex[0:numSpd],ey[0:numSpd],ez[0:numSpd])
@@ -229,8 +229,8 @@ void OpenChannel3D::D3Q15_process_slices(bool isEven, const int firstSlice, cons
     #ifndef _OPENACC
       #pragma omp parallel for collapse(3)
     #endif
-    #pragma acc parallel async(streamNum) wait(writeWaitNum,waitNum) \
-        loop collapse(3) gang vector(128) \
+    #pragma acc parallel loop async(streamNum) wait(writeWaitNum,waitNum) \
+        collapse(3) gang vector(128) \
         present(fIn[0:nnodes*numSpd]) \
         present(fOut[0:nnodes*numSpd]) \
         present(inl[0:nnodes], onl[0:nnodes], snl[0:nnodes], u_bc[0:nnodes])
@@ -553,8 +553,8 @@ void OpenChannel3D::stream_out_collect(bool isEven,const int z_start,float * RES
     
     dummyUse(nnodes,numSpd);
     
-    #pragma acc parallel async(streamNum) \
-        loop collapse(3) \
+    #pragma acc parallel loop async(streamNum) \
+        collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
         present(fIn_b[0:nnodes*numSpd]) \
         copyout(buff_out[0:Nx*Ny*numStreamSpeeds*HALO])
@@ -586,8 +586,8 @@ void OpenChannel3D::stream_in_distribute(bool isEven,const int z_start, const fl
     }
     
     dummyUse(nnodes,numSpd);
-    #pragma acc parallel async(streamNum) \
-        loop collapse(3) \
+    #pragma acc parallel loop async(streamNum) \
+        collapse(3) \
         present(streamSpeeds[0:numStreamSpeeds]) \
         present(fOut_b[0:nnodes*numSpd]) \
         copyin(buff_in[0:Nx*Ny*numStreamSpeeds*HALO])
